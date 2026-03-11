@@ -73,36 +73,82 @@ _client: Optional[OpenAI] = None
 
 def set_api_key(key: str, model: str = "openai/gpt-oss-120b:free"):
     """Call this once with the user's OpenRouter API key before using any agent."""
-    global OPENROUTER_MODEL, _client
-    OPENROUTER_MODEL = model
-    _client = OpenAI(
-        base_url="https://openrouter.ai/api/v1",
-        api_key=key.strip(),
-    )
+    global OPENROUTER_MODEL, _client, _api_key_store
+    OPENROUTER_MODEL  = model
+    _api_key_store    = key.strip()
+    try:
+        _client = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=key.strip(),
+            default_headers={
+                "HTTP-Referer": "https://nexusrag.app",
+                "X-Title":      "NexusRAG",
+            },
+        )
+    except Exception:
+        _client = None  # will use requests fallback
 
+
+_api_key_store = ""
 
 def llm_call(messages: List[Dict], temperature: float = 0.1) -> str:
     """
     messages: list of {"role": "system"|"user"|"assistant", "content": str}
     Returns the assistant text or an error string.
+    Tries openai SDK first, falls back to raw requests if needed.
     """
-    if _client is None:
-        return "Error: API key not set. Please enter your OpenRouter API key in the sidebar."
+    if not _api_key_store:
+        return "Error: API key not set."
+
+    # ── Attempt 1: openai SDK ───────────────────────────────────────────────
+    if _client is not None:
+        try:
+            resp = _client.chat.completions.create(
+                model=OPENROUTER_MODEL,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=4096,
+            )
+            return resp.choices[0].message.content or ""
+        except Exception as e:
+            err = str(e)
+            # Fall through to raw requests only for auth/connection errors
+            if any(x in err.lower() for x in ("429", "rate", "quota")):
+                return "Error: Rate limit reached. Please wait a moment and try again."
+            # For other errors, try raw requests fallback below
+            pass
+
+    # ── Attempt 2: raw requests fallback ───────────────────────────────────
+    if not REQUESTS_OK:
+        return "Error: Cannot connect. Check your API key and internet connection."
     try:
-        resp = _client.chat.completions.create(
-            model=OPENROUTER_MODEL,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=4096,
+        import json as _json
+        r = _req.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization":  f"Bearer {_api_key_store}",
+                "Content-Type":   "application/json",
+                "HTTP-Referer":   "https://nexusrag.app",
+                "X-Title":        "NexusRAG",
+            },
+            json={
+                "model":       OPENROUTER_MODEL,
+                "messages":    messages,
+                "temperature": temperature,
+                "max_tokens":  4096,
+            },
+            timeout=60,
         )
-        return resp.choices[0].message.content or ""
-    except Exception as e:
-        err = str(e)
-        if any(x in err.lower() for x in ("401", "403", "invalid", "unauthorized")):
+        if r.status_code == 401:
             return "Error: Invalid API key. Please check your OpenRouter API key."
-        if any(x in err.lower() for x in ("429", "quota", "rate")):
-            return "Error: Rate limit reached. Please wait a moment and try again."
-        return f"Error: {err}"
+        if r.status_code == 429:
+            return "Error: Rate limit reached. Please wait and try again."
+        if r.status_code != 200:
+            return f"Error: API returned status {r.status_code}: {r.text[:200]}"
+        data = r.json()
+        return data["choices"][0]["message"]["content"] or ""
+    except Exception as e:
+        return f"Error: {e}"
 
 
 def get_embeddings():
