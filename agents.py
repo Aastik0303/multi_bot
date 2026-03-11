@@ -128,7 +128,7 @@ def llm_call(messages: List[Dict], temperature: float = 0.1) -> str:
             headers={
                 "Authorization":  f"Bearer {_api_key_store}",
                 "Content-Type":   "application/json",
-                "HTTP-Referer":   "https://nexusrag.app",
+                "HTTP-Referer":   "https://multibot-x5pcrkscgva4nfnlrdf7mk.streamlit.app/",
                 "X-Title":        "NexusRAG",
             },
             json={
