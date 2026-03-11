@@ -68,30 +68,35 @@ except ImportError:
 # ── OPENROUTER CLIENT ─────────────────────────────────────────────────────────
 
 OPENROUTER_MODEL = "openai/gpt-oss-120b:free"
-
-# ── Auto-init with hardcoded key on import ─────────────────────────────────
 _client: Optional[OpenAI] = None
 
 
-def set_api_key(key: str, model: str = "openai/gpt-oss-120b:free"):
-    """Call this once with the user's OpenRouter API key before using any agent."""
+# ── HARDCODED KEY — only lives in this backend file ───────────────────────────
+_BACKEND_KEY   = ""   # <-- paste your OpenRouter key here
+_BACKEND_MODEL = "openai/gpt-oss-120b:free"
+
+
+def set_api_key(key: str = "", model: str = ""):
+    """Initialises the OpenRouter client. Uses hardcoded backend key if no key passed."""
     global OPENROUTER_MODEL, _client, _api_key_store
-    OPENROUTER_MODEL  = model
-    _api_key_store    = key.strip()
+    use_key   = key.strip()   or _BACKEND_KEY
+    use_model = model.strip() or _BACKEND_MODEL
+    OPENROUTER_MODEL = use_model
+    _api_key_store   = use_key
     try:
         _client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
-            api_key=key.strip(),
+            api_key=use_key,
             default_headers={
                 "HTTP-Referer": "https://nexusrag.app",
                 "X-Title":      "NexusRAG",
             },
         )
     except Exception:
-        _client = None  # will use requests fallback
+        _client = None
 
 
-_api_key_store = ""  # set via set_api_key() at runtime
+_api_key_store = ""
 
 
 # Free model fallback chain — tried in order if primary model fails
