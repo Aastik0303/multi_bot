@@ -263,8 +263,8 @@ def _ss(k, v):
         st.session_state[k] = v
 
 # Keys loaded from Streamlit Cloud Secrets — never hardcoded
-OPENROUTER_API_KEY = st.secrets["OPENROUTER_API_KEY"]
-OPENROUTER_MODEL   = st.secrets["OPENROUTER_MODEL"]
+GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+GEMINI_MODEL = st.secrets["GEMINI_MODEL"]
 
 _ss("agents_ready",    False)
 _ss("orchestrator",    None)
@@ -284,7 +284,7 @@ _ss("video_lang_saved",  "en")
 # ── Init agents — runs automatically on first load ────────────────────────────
 def init_agents():
     from agents import MultiAgentOrchestrator, set_api_key
-    set_api_key(OPENROUTER_API_KEY, OPENROUTER_MODEL)
+    set_api_key(GEMINI_API_KEY, GEMINI_MODEL)
     if st.session_state.orchestrator is None:
         st.session_state.orchestrator = MultiAgentOrchestrator()
     st.session_state.agents_ready = True
@@ -385,7 +385,7 @@ with st.sidebar:
     # ── Status ────────────────────────────────────────────
     if st.session_state.agents_ready:
         st.markdown(
-            f'<span class="badge on">● ONLINE · {OPENROUTER_MODEL}</span>',
+            f'<span class="badge on">● ONLINE · {GEMINI_MODEL}</span>',
             unsafe_allow_html=True)
     else:
         st.markdown('<span class="badge off">● OFFLINE</span>', unsafe_allow_html=True)
@@ -460,7 +460,7 @@ window.addEventListener('load', function() {
 </script>
 <div class="nexus-header">
   <div class="nexus-title">NEXUSRAG</div>
-  <div class="nexus-sub">Multi-Agent Intelligence · OpenRouter · LangChain · FAISS</div>
+  <div class="nexus-sub">Multi-Agent Intelligence · Gemini · LangChain · FAISS</div>
 </div>""", unsafe_allow_html=True)
 
 
