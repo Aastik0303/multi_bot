@@ -383,6 +383,19 @@ with st.sidebar:
             except Exception as e:
                 st.error(str(e))
 
+    # ── Test Connection button ─────────────────────────────
+    if st.button("🧪 Test API Connection", use_container_width=True):
+        with st.spinner("Testing..."):
+            try:
+                from agents import llm_call, _api_key_store, OPENROUTER_MODEL as _OM
+                test_resp = llm_call([{"role":"user","content":"Say: API OK"}], temperature=0)
+                if test_resp.startswith("Error"):
+                    st.error(f"❌ {test_resp}")
+                else:
+                    st.success(f"✅ Connected! Model: {_OM}\nReply: {test_resp[:80]}")
+            except Exception as e:
+                st.error(f"❌ Exception: {e}")
+
 
     st.markdown("---")
 
@@ -665,8 +678,10 @@ with tab_chat:
                         push_msg("assistant", result["answer"], agent="🧠 Auto-Route")
 
             except Exception as e:
+                import traceback
+                full_err = traceback.format_exc()
                 push_msg("assistant",
-                         f"Something went wrong: {str(e)}\n\nCheck your API key is valid and try again.",
+                         f"**Error:** {str(e)}",
                          agent="System")
 
         st.rerun()
