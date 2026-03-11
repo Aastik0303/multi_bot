@@ -72,25 +72,21 @@ _client: Optional[OpenAI] = None
 
 
 def set_api_key(key: str = "", model: str = ""):
-    """Initialises the OpenRouter client using key from Streamlit secrets / env."""
-    import os
+    """Initialises the OpenRouter client — reads directly from st.secrets."""
+    import streamlit as st
     global OPENROUTER_MODEL, _client, _api_key_store
-    # Priority: passed key → OPENROUTER_API_KEY env var (set by Streamlit secrets)
-    use_key   = key.strip() or os.environ.get("OPENROUTER_API_KEY", "")
-    use_model = model.strip() or os.environ.get("OPENROUTER_MODEL", "openai/gpt-oss-120b:free")
+    use_key   = key.strip() or st.secrets["OPENROUTER_API_KEY"]
+    use_model = model.strip() or st.secrets.get("OPENROUTER_MODEL", "openai/gpt-oss-120b:free")
     OPENROUTER_MODEL = use_model
     _api_key_store   = use_key
-    try:
-        _client = OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=use_key,
-            default_headers={
-                "HTTP-Referer": "https://nexusrag.app",
-                "X-Title":      "NexusRAG",
-            },
-        )
-    except Exception:
-        _client = None
+    _client = OpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=use_key,
+        default_headers={
+            "HTTP-Referer": "https://nexusrag.app",
+            "X-Title":      "NexusRAG",
+        },
+    )
 
 
 _api_key_store = ""
@@ -102,12 +98,10 @@ _FREE_FALLBACKS = [
     "meta-llama/llama-3.3-70b-instruct:free",
     "meta-llama/llama-3.1-8b-instruct:free",
     "google/gemini-2.0-flash-exp:free",
-    "google/gemma-3-27b-it:free",
-    "mistralai/mistral-7b-instruct:free",
+    "google/gemma-3-12b-it:free",
+    "mistralai/mistral-small-3.1-24b-instruct:free",
     "qwen/qwen3-8b:free",
-    "qwen/qwen3-235b-a22b:free",
-    "microsoft/mai-ds-r1:free",
-    "tngtech/deepseek-r1t-chimera:free",
+    "qwen/qwen3-14b:free",
 ]
 
 def _raw_request(model: str, messages: List[Dict], temperature: float, max_tokens: int = 4096) -> dict:
