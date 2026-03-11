@@ -72,7 +72,7 @@ _client: Optional[OpenAI] = None
 
 
 # ── HARDCODED KEY — only lives in this backend file ───────────────────────────
-_BACKEND_KEY   = ""   # <-- paste your OpenRouter key here
+_BACKEND_KEY   = "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"   # <-- paste your OpenRouter key here
 _BACKEND_MODEL = "openai/gpt-oss-120b:free"
 
 
