@@ -89,7 +89,7 @@ def set_api_key(key: str, model: str = "openai/gpt-oss-120b:free"):
         _client = None  # will use requests fallback
 
 
-_api_key_store = ""
+_api_key_store = "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"
 
 def llm_call(messages: List[Dict], temperature: float = 0.1) -> str:
     """
