@@ -262,8 +262,9 @@ def _ss(k, v):
     if k not in st.session_state:
         st.session_state[k] = v
 
-OPENROUTER_API_KEY = "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"
-OPENROUTER_MODEL   = "openai/gpt-oss-120b:free"
+# API key loaded from Streamlit Secrets (never exposed in code)
+OPENROUTER_API_KEY = st.secrets.get("OPENROUTER_API_KEY", "")
+OPENROUTER_MODEL   = st.secrets.get("OPENROUTER_MODEL", "openai/gpt-oss-120b:free")
 
 _ss("agents_ready",    False)
 _ss("orchestrator",    None)
