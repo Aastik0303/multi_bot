@@ -67,7 +67,7 @@ except ImportError:
 
 # ── OPENROUTER CLIENT ─────────────────────────────────────────────────────────
 
-OPENROUTER_MODEL = "openai/gpt-oss-120b:free"
+OPENROUTER_MODEL = ""  # set from st.secrets at runtime
 _client: Optional[OpenAI] = None
 
 
@@ -76,7 +76,7 @@ def set_api_key(key: str = "", model: str = ""):
     import streamlit as st
     global OPENROUTER_MODEL, _client, _api_key_store
     use_key   = key.strip() or st.secrets["OPENROUTER_API_KEY"]
-    use_model = model.strip() or st.secrets.get("OPENROUTER_MODEL", "openai/gpt-oss-120b:free")
+    use_model = model.strip() or st.secrets["OPENROUTER_MODEL"]
     OPENROUTER_MODEL = use_model
     _api_key_store   = use_key
     _client = OpenAI(
@@ -96,19 +96,27 @@ _api_key_store = ""
 # No fallbacks — uses only the model set in st.secrets
 
 def llm_call(messages: List[Dict], temperature: float = 0.1) -> str:
-    """Calls exactly the model set in st.secrets. No fallbacks."""
+    """Calls the model from st.secrets. Auto-retries up to 3x on rate limit."""
+    import time
     if not _api_key_store:
         return "Error: API key not set."
-    try:
-        resp = _client.chat.completions.create(
-            model=OPENROUTER_MODEL,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=4096,
-        )
-        return resp.choices[0].message.content or ""
-    except Exception as e:
-        return f"Error: {e}"
+    for attempt in range(3):
+        try:
+            resp = _client.chat.completions.create(
+                model=OPENROUTER_MODEL,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=4096,
+            )
+            return resp.choices[0].message.content or ""
+        except Exception as e:
+            err = str(e)
+            if "429" in err or "rate" in err.lower():
+                wait = (attempt + 1) * 5   # 5s, 10s, 15s
+                time.sleep(wait)
+                continue
+            return f"Error: {e}"
+    return "Error: Rate limited. Please wait a moment and try again."
 
 
 def get_embeddings():
