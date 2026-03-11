@@ -68,6 +68,8 @@ except ImportError:
 # ── OPENROUTER CLIENT ─────────────────────────────────────────────────────────
 
 OPENROUTER_MODEL = "openai/gpt-oss-120b:free"
+
+# ── Auto-init with hardcoded key on import ─────────────────────────────────
 _client: Optional[OpenAI] = None
 
 
@@ -89,16 +91,21 @@ def set_api_key(key: str, model: str = "openai/gpt-oss-120b:free"):
         _client = None  # will use requests fallback
 
 
-_api_key_store = ""
+_api_key_store = "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"
+_HARDCODED_KEY = "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"
 
 # Free model fallback chain — tried in order if primary model fails
 _FREE_FALLBACKS = [
     "openai/gpt-oss-120b:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
     "meta-llama/llama-3.1-8b-instruct:free",
-    "mistralai/mistral-7b-instruct:free",
     "google/gemini-2.0-flash-exp:free",
+    "google/gemma-3-27b-it:free",
+    "mistralai/mistral-7b-instruct:free",
     "qwen/qwen3-8b:free",
-    "deepseek/deepseek-r1-0528:free",
+    "qwen/qwen3-235b-a22b:free",
+    "microsoft/mai-ds-r1:free",
+    "tngtech/deepseek-r1t-chimera:free",
 ]
 
 def _raw_request(model: str, messages: List[Dict], temperature: float, max_tokens: int = 4096) -> dict:
