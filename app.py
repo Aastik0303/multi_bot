@@ -12,7 +12,7 @@ st.set_page_config(
     page_title="NexusRAG · Multi-Agent AI",
     page_icon="⬡",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="expanded",  # always open
 )
 
 # ── CSS ───────────────────────────────────────────────────────────────────────
@@ -55,18 +55,29 @@ html, body, [class*="css"] {
     .nexus-title { font-size: 1.75rem !important; }
 }
 
-/* ── sidebar always styled consistently ── */
+/* ── sidebar always visible and styled ── */
 [data-testid="stSidebar"] {
     background: linear-gradient(180deg,#0a0f1e 0%,#070b14 100%) !important;
     border-right: 1px solid #1e2d4a !important;
+    min-width: 270px !important;
+    transform: none !important;
+    visibility: visible !important;
 }
-/* sidebar toggle/collapse button - make it more visible */
+/* Collapse/expand button styling */
 [data-testid="stSidebarCollapseButton"] button,
 [data-testid="stSidebarCollapsedControl"] button {
     background: #1a2744 !important;
     border: 1px solid #3b5bdb !important;
     border-radius: 8px !important;
     color: #c7d2fe !important;
+    width: 40px !important;
+    height: 40px !important;
+}
+/* Always show the collapsed control so user can re-open */
+[data-testid="stSidebarCollapsedControl"] {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 /* ── header ── */
@@ -470,7 +481,17 @@ with st.sidebar:
 # ════════════════════════════════════════════════════════════
 # HEADER
 # ════════════════════════════════════════════════════════════
+# Force sidebar open on every load via JS
 st.markdown("""
+<script>
+window.addEventListener('load', function() {
+    // Find and click the sidebar expand button if sidebar is collapsed
+    setTimeout(function() {
+        var btns = window.parent.document.querySelectorAll('[data-testid="stSidebarCollapsedControl"] button');
+        if (btns.length > 0) { btns[0].click(); }
+    }, 300);
+});
+</script>
 <div class="nexus-header">
   <div class="nexus-title">NEXUSRAG</div>
   <div class="nexus-sub">Multi-Agent Intelligence · OpenRouter · LangChain · FAISS</div>
