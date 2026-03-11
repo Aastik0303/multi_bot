@@ -264,7 +264,7 @@ def _ss(k, v):
 
 # Keys loaded from Streamlit Cloud Secrets — never hardcoded
 OPENROUTER_API_KEY = st.secrets["OPENROUTER_API_KEY"]
-OPENROUTER_MODEL   = st.secrets.get("OPENROUTER_MODEL", "openai/gpt-oss-120b:free")
+OPENROUTER_MODEL   = st.secrets["OPENROUTER_MODEL"]
 
 _ss("agents_ready",    False)
 _ss("orchestrator",    None)
