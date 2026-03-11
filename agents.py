@@ -81,7 +81,7 @@ def set_api_key(key: str, model: str = "openai/gpt-oss-120b:free"):
             base_url="https://openrouter.ai/api/v1",
             api_key=key.strip(),
             default_headers={
-                "HTTP-Referer": "https://nexusrag.app",
+                "HTTP-Referer": "https://multibot-x5pcrkscgva4nfnlrdf7mk.streamlit.app/",
                 "X-Title":      "NexusRAG",
             },
         )
