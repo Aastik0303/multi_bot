@@ -71,17 +71,20 @@ OPENROUTER_MODEL = ""  # set from st.secrets at runtime
 _client: Optional[OpenAI] = None
 
 
+# ── these are set once by set_api_key() — never reset elsewhere ───────────────
+_api_key_store = ""
+
+
 def set_api_key(key: str = "", model: str = ""):
-    """Initialises the OpenRouter client — reads directly from st.secrets."""
+    """Reads key + model from st.secrets and builds the OpenAI client."""
     import streamlit as st
     global OPENROUTER_MODEL, _client, _api_key_store
-    use_key   = key.strip() or st.secrets["OPENROUTER_API_KEY"]
-    use_model = model.strip() or st.secrets["OPENROUTER_MODEL"]
-    OPENROUTER_MODEL = use_model
-    _api_key_store   = use_key
+    # Always read fresh from st.secrets — ignore any passed empty strings
+    _api_key_store   = st.secrets["OPENROUTER_API_KEY"].strip()
+    OPENROUTER_MODEL = st.secrets["OPENROUTER_MODEL"].strip()
     _client = OpenAI(
         base_url="https://openrouter.ai/api/v1",
-        api_key=use_key,
+        api_key=_api_key_store,
         default_headers={
             "HTTP-Referer": "https://nexusrag.app",
             "X-Title":      "NexusRAG",
@@ -89,17 +92,11 @@ def set_api_key(key: str = "", model: str = ""):
     )
 
 
-_api_key_store = ""
-
-
-# Free model fallback chain — tried in order if primary model fails
-# No fallbacks — uses only the model set in st.secrets
-
 def llm_call(messages: List[Dict], temperature: float = 0.1) -> str:
-    """Calls the model from st.secrets. Auto-retries up to 3x on rate limit."""
+    """Calls the model from st.secrets. Auto-retries 3x on rate limit."""
     import time
-    if not _api_key_store:
-        return "Error: API key not set."
+    if not _api_key_store or _client is None:
+        return "Error: API client not initialised. Check st.secrets."
     for attempt in range(3):
         try:
             resp = _client.chat.completions.create(
@@ -112,8 +109,7 @@ def llm_call(messages: List[Dict], temperature: float = 0.1) -> str:
         except Exception as e:
             err = str(e)
             if "429" in err or "rate" in err.lower():
-                wait = (attempt + 1) * 5   # 5s, 10s, 15s
-                time.sleep(wait)
+                time.sleep((attempt + 1) * 5)
                 continue
             return f"Error: {e}"
     return "Error: Rate limited. Please wait a moment and try again."
