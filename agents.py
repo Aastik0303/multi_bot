@@ -71,16 +71,13 @@ OPENROUTER_MODEL = "openai/gpt-oss-120b:free"
 _client: Optional[OpenAI] = None
 
 
-# ── HARDCODED KEY — only lives in this backend file ───────────────────────────
-_BACKEND_KEY   = "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"   # <-- paste your OpenRouter key here
-_BACKEND_MODEL = "openai/gpt-oss-120b:free"
-
-
 def set_api_key(key: str = "", model: str = ""):
-    """Initialises the OpenRouter client. Uses hardcoded backend key if no key passed."""
+    """Initialises the OpenRouter client using key from Streamlit secrets / env."""
+    import os
     global OPENROUTER_MODEL, _client, _api_key_store
-    use_key   = key.strip()   or _BACKEND_KEY
-    use_model = model.strip() or _BACKEND_MODEL
+    # Priority: passed key → OPENROUTER_API_KEY env var (set by Streamlit secrets)
+    use_key   = key.strip() or os.environ.get("OPENROUTER_API_KEY", "")
+    use_model = model.strip() or os.environ.get("OPENROUTER_MODEL", "openai/gpt-oss-120b:free")
     OPENROUTER_MODEL = use_model
     _api_key_store   = use_key
     try:
