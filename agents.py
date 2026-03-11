@@ -67,11 +67,11 @@ except ImportError:
 
 # ── OPENROUTER CLIENT ─────────────────────────────────────────────────────────
 
-OPENROUTER_MODEL = "google/gemini-2.0-flash-exp:free"
+OPENROUTER_MODEL = "openai/gpt-oss-120b:free""
 _client: Optional[OpenAI] = None
 
 
-def set_api_key(key: str, model: str = "google/gemini-2.0-flash-exp:free"):
+def set_api_key(key: str, model: str = "openai/gpt-oss-120b:free""):
     """Call this once with the user's OpenRouter API key before using any agent."""
     global OPENROUTER_MODEL, _client
     OPENROUTER_MODEL = model
