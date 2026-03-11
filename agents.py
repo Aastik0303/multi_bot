@@ -81,7 +81,7 @@ def set_api_key(key: str, model: str = "openai/gpt-oss-120b:free"):
             base_url="https://openrouter.ai/api/v1",
             api_key=key.strip(),
             default_headers={
-                "HTTP-Referer": "https://multibot-x5pcrkscgva4nfnlrdf7mk.streamlit.app/",
+                "HTTP-Referer": "https://nexusrag.app",
                 "X-Title":      "NexusRAG",
             },
         )
@@ -89,66 +89,95 @@ def set_api_key(key: str, model: str = "openai/gpt-oss-120b:free"):
         _client = None  # will use requests fallback
 
 
-_api_key_store = "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"
+_api_key_store = ""
+
+# Free model fallback chain — tried in order if primary model fails
+_FREE_FALLBACKS = [
+    "openai/gpt-oss-120b:free",
+    "meta-llama/llama-3.1-8b-instruct:free",
+    "mistralai/mistral-7b-instruct:free",
+    "google/gemini-2.0-flash-exp:free",
+    "qwen/qwen3-8b:free",
+    "deepseek/deepseek-r1-0528:free",
+]
+
+def _raw_request(model: str, messages: List[Dict], temperature: float, max_tokens: int = 4096) -> dict:
+    """Make a raw HTTP request to OpenRouter. Returns the full response dict."""
+    r = _req.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {_api_key_store}",
+            "Content-Type":  "application/json",
+            "HTTP-Referer":  "https://nexusrag.app",
+            "X-Title":       "NexusRAG",
+        },
+        json={
+            "model":       model,
+            "messages":    messages,
+            "temperature": temperature,
+            "max_tokens":  max_tokens,
+        },
+        timeout=90,
+    )
+    return {"status": r.status_code, "body": r.json() if r.headers.get("content-type","").startswith("application/json") else {}, "text": r.text}
+
 
 def llm_call(messages: List[Dict], temperature: float = 0.1) -> str:
     """
-    messages: list of {"role": "system"|"user"|"assistant", "content": str}
-    Returns the assistant text or an error string.
-    Tries openai SDK first, falls back to raw requests if needed.
+    Tries primary model first, then falls back through free model chain.
+    Returns assistant text or a descriptive error string.
     """
     if not _api_key_store:
         return "Error: API key not set."
 
-    # ── Attempt 1: openai SDK ───────────────────────────────────────────────
-    if _client is not None:
-        try:
-            resp = _client.chat.completions.create(
-                model=OPENROUTER_MODEL,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=4096,
-            )
-            return resp.choices[0].message.content or ""
-        except Exception as e:
-            err = str(e)
-            # Fall through to raw requests only for auth/connection errors
-            if any(x in err.lower() for x in ("429", "rate", "quota")):
-                return "Error: Rate limit reached. Please wait a moment and try again."
-            # For other errors, try raw requests fallback below
-            pass
-
-    # ── Attempt 2: raw requests fallback ───────────────────────────────────
     if not REQUESTS_OK:
-        return "Error: Cannot connect. Check your API key and internet connection."
-    try:
-        import json as _json
-        r = _req.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization":  f"Bearer {_api_key_store}",
-                "Content-Type":   "application/json",
-                "HTTP-Referer":   "https://multibot-x5pcrkscgva4nfnlrdf7mk.streamlit.app/",
-                "X-Title":        "NexusRAG",
-            },
-            json={
-                "model":       OPENROUTER_MODEL,
-                "messages":    messages,
-                "temperature": temperature,
-                "max_tokens":  4096,
-            },
-            timeout=60,
-        )
-        if r.status_code == 401:
-            return "Error: Invalid API key. Please check your OpenRouter API key."
-        if r.status_code == 429:
-            return "Error: Rate limit reached. Please wait and try again."
-        if r.status_code != 200:
-            return f"Error: API returned status {r.status_code}: {r.text[:200]}"
-        data = r.json()
-        return data["choices"][0]["message"]["content"] or ""
-    except Exception as e:
-        return f"Error: {e}"
+        return "Error: requests library not available."
+
+    # Build model list: primary first, then fallbacks (deduplicated)
+    models_to_try = [OPENROUTER_MODEL] + [m for m in _FREE_FALLBACKS if m != OPENROUTER_MODEL]
+
+    last_error = ""
+    for model in models_to_try:
+        try:
+            result = _raw_request(model, messages, temperature)
+            status = result["status"]
+            body   = result["body"]
+
+            if status == 200:
+                # Success
+                content = body.get("choices", [{}])[0].get("message", {}).get("content", "")
+                if content:
+                    return content
+                # Sometimes OpenRouter returns 200 but with an error in body
+                err_msg = body.get("error", {}).get("message", "")
+                if err_msg:
+                    last_error = f"Model {model} error: {err_msg}"
+                    continue
+
+            elif status == 401:
+                # Auth failure — no point trying other models
+                return "Error: Invalid API key. Go to openrouter.ai to check your key."
+
+            elif status == 429:
+                last_error = f"Rate limit on {model}"
+                continue  # try next model
+
+            elif status in (400, 404):
+                # Model not found or bad request — try next
+                err_msg = body.get("error", {}).get("message", result["text"][:150])
+                last_error = f"Model {model} unavailable: {err_msg}"
+                continue
+
+            else:
+                err_msg = body.get("error", {}).get("message", result["text"][:150])
+                last_error = f"Status {status} on {model}: {err_msg}"
+                continue
+
+        except Exception as e:
+            last_error = f"Request error on {model}: {e}"
+            continue
+
+    return f"Error: All models failed. Last error: {last_error}"
 
 
 def get_embeddings():
