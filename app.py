@@ -262,7 +262,7 @@ def _ss(k, v):
     if k not in st.session_state:
         st.session_state[k] = v
 
-OPENROUTER_API_KEY = ""  # Enter key in sidebar
+OPENROUTER_API_KEY = "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"
 OPENROUTER_MODEL   = "openai/gpt-oss-120b:free"
 
 _ss("agents_ready",    False)
@@ -276,24 +276,20 @@ _ss("data_filename",   "")
 _ss("data_shape",      "")
 _ss("data_columns",    [])
 _ss("_boot_error",     "")
-_ss("user_api_key",    "")
 _ss("video_url_saved",   "")
 _ss("video_lang_saved",  "en")
 
 
 # ── Init agents — runs automatically on first load ────────────────────────────
-def init_agents(key: str = ""):
+def init_agents():
     from agents import MultiAgentOrchestrator, set_api_key
-    use_key = key.strip() or st.session_state.get("user_api_key", "").strip()
-    if not use_key:
-        return  # wait for user to enter key
-    set_api_key(use_key, OPENROUTER_MODEL)
+    set_api_key(OPENROUTER_API_KEY, OPENROUTER_MODEL)
     if st.session_state.orchestrator is None:
         st.session_state.orchestrator = MultiAgentOrchestrator()
     st.session_state.agents_ready = True
     st.session_state._boot_error  = ""
 
-if not st.session_state.agents_ready and st.session_state.get("user_api_key"):
+if not st.session_state.agents_ready:
     try:
         init_agents()
     except Exception as e:
@@ -385,49 +381,18 @@ with st.sidebar:
 
     st.markdown("---")
 
-    # ── API Key Input ──────────────────────────────────────
-    st.markdown('<div class="api-key-label">🔑 OpenRouter API Key</div>', unsafe_allow_html=True)
-    key_input = st.text_input(
-        "API Key", type="password",
-        placeholder="sk-or-v1-...",
-        value=st.session_state.user_api_key,
-        label_visibility="collapsed",
-        key="sidebar_key_input"
-    )
-    if st.button("✅ Connect", use_container_width=True, key="connect_btn"):
-        if key_input.strip():
-            st.session_state.user_api_key = key_input.strip()
-            st.session_state.orchestrator = None  # force re-init
-            st.session_state.agents_ready = False
-            try:
-                init_agents(key_input.strip())
-                st.rerun()
-            except Exception as e:
-                st.error(f"❌ {e}")
-        else:
-            st.warning("Please paste your OpenRouter API key.")
-
     # ── Status ────────────────────────────────────────────
     if st.session_state.agents_ready:
         st.markdown(
             f'<span class="badge on">● ONLINE · {OPENROUTER_MODEL}</span>',
             unsafe_allow_html=True)
     else:
-        st.markdown('<span class="badge off">● OFFLINE — enter key above</span>', unsafe_allow_html=True)
-
-    # ── Test Connection button ─────────────────────────────
-    if st.session_state.agents_ready:
-        if st.button("🧪 Test Connection", use_container_width=True):
-            with st.spinner("Testing..."):
-                try:
-                    from agents import llm_call, OPENROUTER_MODEL as _OM
-                    test_resp = llm_call([{"role":"user","content":"Say exactly: API OK"}], temperature=0)
-                    if test_resp.lower().startswith("error"):
-                        st.error(f"❌ {test_resp}")
-                    else:
-                        st.success(f"✅ Working!\n{test_resp[:100]}")
-                except Exception as e:
-                    st.error(f"❌ {e}")
+        st.markdown('<span class="badge off">● OFFLINE</span>', unsafe_allow_html=True)
+        if st.button("🔄 Retry", use_container_width=True):
+            try:
+                init_agents(); st.rerun()
+            except Exception as e:
+                st.error(f"❌ {e}")
 
 
     st.markdown("---")
@@ -503,19 +468,12 @@ if st.session_state._boot_error:
     st.error(f"⚠️ {st.session_state._boot_error}")
 
 if not st.session_state.agents_ready:
-    st.markdown("""
-<div style="max-width:480px;margin:1.5rem auto;background:#0a1628;border:1px solid #1e3a5f;
-     border-radius:14px;padding:1.8rem;text-align:center">
-  <div style="font-size:2.2rem;margin-bottom:0.6rem">🔑</div>
-  <div style="font-size:1.1rem;font-weight:700;color:#c7d2fe;margin-bottom:0.5rem">
-    Enter Your OpenRouter API Key
-  </div>
-  <div style="font-size:0.82rem;color:#64748b;line-height:1.6">
-    Open the <strong style="color:#7c6df2">sidebar (☰)</strong>, paste your key and click <strong style="color:#7c6df2">Connect</strong>.<br><br>
-    Get a free key at <a href="https://openrouter.ai/keys" target="_blank" style="color:#7c6df2">openrouter.ai/keys</a>
-    — no credit card needed.
-  </div>
-</div>""", unsafe_allow_html=True)
+    st.error("⚠️ Could not connect. Please refresh the page.")
+    if st.button("🔄 Retry Connection"):
+        try:
+            init_agents(); st.rerun()
+        except Exception as e:
+            st.error(str(e))
     st.stop()
 
 
