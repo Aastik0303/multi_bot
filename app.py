@@ -271,7 +271,7 @@ def _ss(k, v):
         st.session_state[k] = v
 
 OPENROUTER_API_KEY = "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"
-OPENROUTER_MODEL   = "openai/gpt-oss-120b:free""
+OPENROUTER_MODEL   = "openai/gpt-oss-120b:free"
 
 _ss("agents_ready",    False)
 _ss("orchestrator",    None)
