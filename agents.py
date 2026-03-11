@@ -1,7 +1,6 @@
 """
 agents.py — NexusRAG Agent Stack
-Uses OpenRouter API (OpenAI-compatible).
-No API key pool. Single key set at runtime via set_api_key().
+Uses Google Gemini API directly (Google AI Studio key).
 """
 
 from __future__ import annotations
@@ -18,8 +17,8 @@ import seaborn as sns
 import numpy as np
 import pandas as pd
 
-# OpenAI-compatible client pointing at OpenRouter
-from openai import OpenAI
+# Google Gemini client
+import google.generativeai as genai
 
 from langchain_community.vectorstores import FAISS
 try:
@@ -65,50 +64,75 @@ except ImportError:
     DDGS_OK = False
 
 
-# ── OPENROUTER CLIENT ─────────────────────────────────────────────────────────
+# ── GOOGLE GEMINI CLIENT ──────────────────────────────────────────────────────
 
-OPENROUTER_MODEL = ""  # set from st.secrets at runtime
-_client: Optional[OpenAI] = None
-
-
-# ── these are set once by set_api_key() — never reset elsewhere ───────────────
+GEMINI_MODEL = ""   # set from st.secrets at runtime
 _api_key_store = ""
 
 
 def set_api_key(key: str = "", model: str = ""):
-    """Reads key + model from st.secrets and builds the OpenAI client."""
-    import streamlit as st
-    global OPENROUTER_MODEL, _client, _api_key_store
-    # Always read fresh from st.secrets — ignore any passed empty strings
-    _api_key_store   = st.secrets["OPENROUTER_API_KEY"].strip()
-    OPENROUTER_MODEL = st.secrets["OPENROUTER_MODEL"].strip()
-    _client = OpenAI(
-        base_url="https://openrouter.ai/api/v1",
-        api_key=_api_key_store,
-        default_headers={
-            "HTTP-Referer": "https://nexusrag.app",
-            "X-Title":      "NexusRAG",
-        },
-    )
+    """Configure Gemini with key + model from st.secrets."""
+    global GEMINI_MODEL, _api_key_store
+    if not key.strip():
+        raise ValueError("GEMINI_API_KEY is empty — check your Streamlit secrets.")
+    if not model.strip():
+        raise ValueError("GEMINI_MODEL is empty — check your Streamlit secrets.")
+    _api_key_store = key.strip()
+    GEMINI_MODEL   = model.strip()
+    genai.configure(api_key=_api_key_store)
 
 
 def llm_call(messages: List[Dict], temperature: float = 0.1) -> str:
-    """Calls the model from st.secrets. Auto-retries 3x on rate limit."""
+    """Send messages to Gemini. Auto-retries 3x on rate limit."""
     import time
-    if not _api_key_store or _client is None:
-        return "Error: API client not initialised. Check st.secrets."
+    if not _api_key_store:
+        return "Error: API key not set. Check your Streamlit secrets."
     for attempt in range(3):
         try:
-            resp = _client.chat.completions.create(
-                model=OPENROUTER_MODEL,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=4096,
+            model = genai.GenerativeModel(
+                model_name=GEMINI_MODEL,
+                generation_config=genai.types.GenerationConfig(
+                    temperature=temperature,
+                    max_output_tokens=4096,
+                )
             )
-            return resp.choices[0].message.content or ""
+            # Convert messages list to Gemini format
+            # System message → prepend to first user message
+            system_text = ""
+            gemini_history = []
+            chat_messages  = []
+
+            for msg in messages:
+                role    = msg.get("role", "user")
+                content = msg.get("content", "")
+                if role == "system":
+                    system_text = content
+                elif role == "user":
+                    chat_messages.append({"role": "user", "parts": [content]})
+                elif role == "assistant":
+                    chat_messages.append({"role": "model", "parts": [content]})
+
+            # Prepend system prompt to first user message if present
+            if system_text and chat_messages:
+                for m in chat_messages:
+                    if m["role"] == "user":
+                        m["parts"][0] = system_text + "\n\n" + m["parts"][0]
+                        break
+
+            if not chat_messages:
+                return "Error: No messages to send."
+
+            # Use chat history (all but last) then send last message
+            history  = chat_messages[:-1]
+            last_msg = chat_messages[-1]["parts"][0]
+
+            chat = model.start_chat(history=history)
+            resp = chat.send_message(last_msg)
+            return resp.text or ""
+
         except Exception as e:
             err = str(e)
-            if "429" in err or "rate" in err.lower():
+            if "429" in err or "quota" in err.lower() or "rate" in err.lower():
                 time.sleep((attempt + 1) * 5)
                 continue
             return f"Error: {e}"
