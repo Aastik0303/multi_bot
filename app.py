@@ -47,25 +47,45 @@ html, body, [class*="css"] {
     padding-top: 1rem !important;
 }
 
-/* ── mobile: full-width sidebar overlay ── */
+/* ── mobile fixes ── */
 @media (max-width: 768px) {
+    /* sidebar: slide in from left as overlay */
     [data-testid="stSidebar"] {
-        min-width: 85vw !important;
-        max-width: 92vw !important;
+        min-width: 82vw !important;
+        max-width: 88vw !important;
         position: fixed !important;
+        top: 0 !important; left: 0 !important;
         z-index: 9999 !important;
-        height: 100vh !important;
+        height: 100dvh !important;
         overflow-y: auto !important;
-        box-shadow: 4px 0 24px rgba(0,0,0,0.6) !important;
+        box-shadow: 6px 0 32px rgba(0,0,0,0.7) !important;
     }
-    /* make tab text smaller on mobile */
-    .stTabs [data-baseweb="tab"] { font-size: 0.75rem !important; padding: 0.4rem 0.5rem !important; }
-    /* bigger touch targets for agent buttons */
-    .stButton > button { min-height: 44px !important; }
-    /* prevent text overflow on small screens */
+    /* make the Streamlit collapse arrow bigger & easier to tap */
+    [data-testid="stSidebarCollapseButton"] {
+        width: 48px !important; height: 48px !important;
+        top: 8px !important;
+    }
+    /* show the expand button always on mobile */
+    [data-testid="stSidebarCollapsedControl"] {
+        display: flex !important;
+        position: fixed !important;
+        top: 10px !important; left: 10px !important;
+        z-index: 10000 !important;
+        background: #1a2744 !important;
+        border: 1px solid #3b5bdb !important;
+        border-radius: 8px !important;
+        padding: 6px !important;
+    }
+    /* tabs smaller */
+    .stTabs [data-baseweb="tab"] { font-size: 0.72rem !important; padding: 0.35rem 0.45rem !important; }
+    /* bigger tap targets */
+    .stButton > button { min-height: 46px !important; font-size: 0.9rem !important; }
+    /* bubbles full width */
     .bubble-user, .bubble-agent { max-width: 98% !important; font-size: 0.82rem !important; }
     .agent-bar-desc { display: none; }
-    .nexus-title { font-size: 1.8rem !important; }
+    .nexus-title { font-size: 1.75rem !important; }
+    /* push main content down so hamburger doesn't overlap */
+    .main .block-container { padding-top: 3rem !important; }
 }
 
 /* ── header ── */
@@ -251,7 +271,7 @@ def _ss(k, v):
         st.session_state[k] = v
 
 OPENROUTER_API_KEY = "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"
-OPENROUTER_MODEL   = "openai/gpt-4o-mini"
+OPENROUTER_MODEL   = "google/gemini-2.0-flash-exp:free"
 
 _ss("agents_ready",    False)
 _ss("orchestrator",    None)
@@ -439,6 +459,47 @@ st.markdown("""
   <div class="nexus-title">NEXUSRAG</div>
   <div class="nexus-sub">Multi-Agent Intelligence · OpenRouter · LangChain · FAISS</div>
 </div>""", unsafe_allow_html=True)
+
+# ── Mobile agent row (always rendered, CSS hides on desktop) ──────────────
+st.markdown("""
+<style>
+.mob-bar { display:none; }
+@media (max-width:768px){
+  .mob-bar{display:flex!important;gap:5px;overflow-x:auto;padding:2px 0 10px;
+    scrollbar-width:none;-ms-overflow-style:none;}
+  .mob-bar::-webkit-scrollbar{display:none;}
+  .mob-bar span{flex-shrink:0;border-radius:18px;padding:4px 11px;font-size:0.72rem;
+    font-family:Syne,sans-serif;font-weight:700;cursor:pointer;border:1px solid #1e3a5f;
+    background:#0a0f1e;color:#94a3b8;white-space:nowrap;}
+  .mob-bar span.act{background:linear-gradient(135deg,#3b5bdb,#7c6df2)!important;
+    border-color:#7c6df2!important;color:#fff!important;}
+}
+</style>""", unsafe_allow_html=True)
+
+_a = st.session_state.active_agent
+_pills = [("chat","🤖"),("rag","📄"),("video","🎬"),("data","📊"),("code","💻"),("research","🔬"),("auto","🧠")]
+_bar = '<div class="mob-bar">' + "".join(
+    f'<span class="{"act" if a==_a else ""}">{e} {a.title()}</span>' for a,e in _pills
+) + '</div>'
+st.markdown(_bar, unsafe_allow_html=True)
+
+# Functional mobile agent switcher — selectbox hidden on desktop via CSS
+st.markdown('<div class="mob-sel">', unsafe_allow_html=True)
+_opts  = [f"{e} {a.title()}" for a,e in _pills]
+_ids   = [a for a,_ in _pills]
+_sel   = st.selectbox("Agent", _opts, index=_ids.index(_a) if _a in _ids else 0,
+                       key="mob_agent_sel", label_visibility="collapsed")
+st.markdown('</div>', unsafe_allow_html=True)
+st.markdown("""<style>
+.mob-sel{display:none}
+@media(max-width:768px){.mob-sel{display:block!important}}
+/* target the selectbox inside mob-sel */
+div.mob-sel > div[data-testid]{display:block!important}
+</style>""", unsafe_allow_html=True)
+_new_id = _ids[_opts.index(_sel)]
+if _new_id != st.session_state.active_agent:
+    st.session_state.active_agent = _new_id
+    st.rerun()
 
 # ── Boot error ────────────────────────────────────────────────────────────────
 if st.session_state._boot_error:
