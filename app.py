@@ -262,9 +262,9 @@ def _ss(k, v):
     if k not in st.session_state:
         st.session_state[k] = v
 
-# API key is read from st.secrets inside agents.py — nothing stored here
-OPENROUTER_API_KEY = ""
-OPENROUTER_MODEL   = ""
+# Keys loaded from Streamlit Cloud Secrets — never hardcoded
+OPENROUTER_API_KEY = st.secrets["OPENROUTER_API_KEY"]
+OPENROUTER_MODEL   = st.secrets.get("OPENROUTER_MODEL", "openai/gpt-oss-120b:free")
 
 _ss("agents_ready",    False)
 _ss("orchestrator",    None)
