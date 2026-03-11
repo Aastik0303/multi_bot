@@ -263,8 +263,8 @@ def _ss(k, v):
         st.session_state[k] = v
 
 # Keys loaded from Streamlit Cloud Secrets — never hardcoded
-GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
-GEMINI_MODEL = st.secrets["GEMINI_MODEL"]
+GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", "")
+GEMINI_MODEL = st.secrets.get("GEMINI_MODEL", "gemini-2.0-flash")
 
 _ss("agents_ready",    False)
 _ss("orchestrator",    None)
@@ -497,7 +497,7 @@ if (st.session_state.get("video_ingested")
 # ════════════════════════════════════════════════════════════
 # TABS
 # ════════════════════════════════════════════════════════════
-tab_chat, tab_ingest, tab_viz = st.tabs(["💬 Chat", "📥 Ingest Data", "📊 Visualize"])
+tab_chat, tab_ingest, tab_viz, tab_about = st.tabs(["💬 Chat", "📥 Ingest Data", "📊 Visualize", "ℹ️ About"])
 
 
 # ════════════════════════════════════════════════════════════
@@ -933,3 +933,116 @@ with tab_viz:
         with pc2:
             st.markdown("**Numeric Summary**")
             st.dataframe(df.describe(), use_container_width=True)
+
+# ════════════════════════════════════════════════════════════
+# TAB 4 — ABOUT
+# ════════════════════════════════════════════════════════════
+with tab_about:
+    st.markdown("""
+<div style="max-width:820px;margin:0 auto;padding:1rem 0">
+
+<div style="text-align:center;margin-bottom:2rem">
+  <div style="font-size:3.5rem;margin-bottom:0.5rem">⬡</div>
+  <div style="font-size:2rem;font-weight:800;background:linear-gradient(135deg,#7c6df2,#3b82f6,#06b6d4);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
+    NexusRAG
+  </div>
+  <div style="color:#475569;font-size:0.85rem;letter-spacing:0.15em;text-transform:uppercase;margin-top:0.3rem">
+    Multi-Agent Intelligence Platform
+  </div>
+</div>
+
+</div>""", unsafe_allow_html=True)
+
+    # ── What is it ────────────────────────────────────────────
+    st.markdown("## 🤖 What is NexusRAG?")
+    st.markdown("""
+**NexusRAG** is an all-in-one AI web app that gives you access to **6 powerful AI agents** — all in one place.
+Instead of juggling multiple tools, just open NexusRAG and ask anything. The right agent handles it automatically.
+
+> 💡 Built with **Google Gemini AI**, **LangChain**, **FAISS vector search**, and **Streamlit**.
+""")
+
+    # ── Agents ────────────────────────────────────────────────
+    st.markdown("## 🧩 The 6 AI Agents")
+    agents_info = [
+        ("🤖", "General Chatbot",  "Your main AI companion. Remembers your conversation, answers any question, and automatically delegates to the right specialist when needed."),
+        ("📄", "Document Q&A",     "Upload PDFs, TXT, or CSV files. Ask questions and get answers grounded in your documents — with source citations."),
+        ("🎬", "YouTube RAG",      "Paste any YouTube URL. The app fetches the transcript and lets you ask questions about the video with clickable timestamp links."),
+        ("📊", "Data Analyst",     "Upload CSV or Excel files. Get instant stats, trends, patterns, and 7 types of beautiful charts — just describe what you want."),
+        ("💻", "Code Generator",   "Write, explain, or debug code in any language. Just describe what you need — get clean, commented, production-ready code."),
+        ("🔬", "Web Researcher",   "Give any topic and get a full structured research report. Searches the live web and compiles findings into a detailed markdown report."),
+    ]
+    cols = st.columns(2)
+    for i, (icon, name, desc) in enumerate(agents_info):
+        with cols[i % 2]:
+            st.markdown(f"""
+<div style="background:#0a0f1e;border:1px solid #1e2d4a;border-radius:10px;
+  padding:1rem;margin-bottom:0.8rem">
+  <div style="font-size:1.5rem;margin-bottom:0.3rem">{icon} <strong style="color:#e2e8f0">{name}</strong></div>
+  <div style="color:#94a3b8;font-size:0.88rem;line-height:1.5">{desc}</div>
+</div>""", unsafe_allow_html=True)
+
+    # ── How it works ──────────────────────────────────────────
+    st.markdown("## ⚙️ How It Works")
+    steps = [
+        ("1️⃣", "Type your question", "Just write what you need in plain English — no special commands needed."),
+        ("2️⃣", "Auto-Router decides", "The smart router reads your intent and picks the best agent automatically."),
+        ("3️⃣", "Agent does the work", "The right specialist searches, reads, generates, or analyzes for you."),
+        ("4️⃣", "Get a rich answer",   "Responses include markdown formatting, emojis, charts, code, and sources."),
+    ]
+    for num, title, desc in steps:
+        st.markdown(f"""
+<div style="display:flex;align-items:flex-start;gap:1rem;background:#0a0f1e;
+  border:1px solid #1e2d4a;border-radius:10px;padding:0.9rem;margin-bottom:0.6rem">
+  <div style="font-size:1.6rem;flex-shrink:0">{num}</div>
+  <div>
+    <div style="font-weight:700;color:#e2e8f0;margin-bottom:0.2rem">{title}</div>
+    <div style="color:#94a3b8;font-size:0.88rem">{desc}</div>
+  </div>
+</div>""", unsafe_allow_html=True)
+
+    # ── Tech Stack ────────────────────────────────────────────
+    st.markdown("## 🛠️ Tech Stack")
+    techs = [
+        ("🧠", "Google Gemini AI",   "Powers all AI responses — fast, free, and capable"),
+        ("🔗", "LangChain",          "Orchestrates agents, document loaders, and chains"),
+        ("📦", "FAISS",              "Vector database for fast semantic document search"),
+        ("🌐", "Streamlit",          "Beautiful, responsive web UI — no frontend code needed"),
+        ("🔍", "DuckDuckGo Search",  "Live web search for the research agent"),
+        ("🎬", "YouTube Transcript API", "Fetches video transcripts for the YouTube agent"),
+    ]
+    tcols = st.columns(3)
+    for i, (icon, name, desc) in enumerate(techs):
+        with tcols[i % 3]:
+            st.markdown(f"""
+<div style="background:#0a0f1e;border:1px solid #1e2d4a;border-radius:8px;
+  padding:0.8rem;margin-bottom:0.6rem;text-align:center">
+  <div style="font-size:1.4rem">{icon}</div>
+  <div style="font-weight:700;color:#7c6df2;font-size:0.9rem;margin:0.3rem 0">{name}</div>
+  <div style="color:#64748b;font-size:0.78rem">{desc}</div>
+</div>""", unsafe_allow_html=True)
+
+    # ── Features ──────────────────────────────────────────────
+    st.markdown("## ✨ Key Features")
+    features = [
+        "🔒 **Secure** — API key stored in Streamlit Secrets, never exposed to users",
+        "📱 **Responsive** — Works on mobile, tablet, and desktop",
+        "🧠 **Auto-routing** — Smart intent detection picks the right agent",
+        "📂 **Multi-format** — Supports PDF, TXT, CSV, Excel, YouTube URLs",
+        "💬 **Memory** — General chatbot remembers your full conversation",
+        "📊 **7 chart types** — Bar, line, scatter, pie, histogram, heatmap, box",
+        "🌐 **Live search** — Real-time web research with source citations",
+        "⚡ **Fast** — Gemini AI delivers quick, high-quality responses",
+    ]
+    fc1, fc2 = st.columns(2)
+    for i, f in enumerate(features):
+        with (fc1 if i % 2 == 0 else fc2):
+            st.markdown(f"- {f}")
+
+    # ── Footer ────────────────────────────────────────────────
+    st.markdown("---")
+    st.markdown("""
+<div style="text-align:center;color:#334155;font-size:0.8rem;padding:0.5rem">
+  Built with ❤️ using Google Gemini · LangChain · FAISS · Streamlit
+</div>""", unsafe_allow_html=True)
