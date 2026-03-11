@@ -222,7 +222,7 @@ class RAGAgent:
         context = "\n\n".join(d.page_content for d in docs)
         sources  = list({d.metadata.get("source", "?") for d in docs})
         answer   = llm_call([
-            {"role": "system", "content": "Answer based ONLY on the context provided. If the answer is not in the context, say so clearly."},
+            {"role": "system", "content": "You are a Document Q&A specialist. Answer ONLY from the context. Use markdown, emojis, headers, and bullets for well-structured answers. Bold key terms. If not in context say: Not found in the uploaded documents."},
             {"role": "user",   "content": f"Context:\n{context}\n\nQuestion: {question}\n\nAnswer:"},
         ])
         return {"answer": answer, "sources": sources}
@@ -614,8 +614,8 @@ class CodeGeneratorAgent:
 
     def generate(self, request: str, language: str = "Python") -> Dict:
         resp = llm_call([
-            {"role": "system", "content": f"You are an expert {language} programmer. Write clean, concise, commented code. Always wrap code in a code block."},
-            {"role": "user",   "content": f"Write {language} code for: {request}\n\nProvide the code block then a short explanation."},
+            {"role": "system", "content": f"You are an expert {language} programmer. Write clean, well-commented, production-quality code in a code block. After code provide: what it does, how to use it, and any important notes. Use emojis and markdown."},
+            {"role": "user",   "content": f"Task: {request}\n\nWrite complete working {language} code with clear comments. Then explain it with emojis and markdown formatting."},
         ], temperature=0.2)
         code        = _extract_code(resp)
         explanation = re.sub(r"```[\w]*\n?.*?```", "", resp, flags=re.DOTALL).strip()
@@ -623,13 +623,13 @@ class CodeGeneratorAgent:
 
     def explain(self, code: str) -> str:
         return llm_call([
-            {"role": "system", "content": "Explain code clearly and simply for a beginner."},
+            {"role": "system", "content": "Explain code step-by-step using markdown and emojis. Cover: what each section does, key concepts, potential issues, and usage tips. Make it beginner-friendly."},
             {"role": "user",   "content": f"Explain this code:\n\n```\n{code}\n```"},
         ])
 
     def debug(self, code: str, error: str = "") -> Dict:
         resp = llm_call([
-            {"role": "system", "content": "You are a debugging expert. Identify the bug and return the fixed code in a code block."},
+            {"role": "system", "content": "You are a debugging expert. Identify ALL bugs, explain each issue with emojis, return fixed code in a code block, and add a prevention tip."},
             {"role": "user",   "content": f"Error: {error or 'unknown'}\n\nCode:\n```\n{code}\n```\n\nExplain the bug and show the fixed code."},
         ])
         return {"fixed_code": _extract_code(resp), "explanation": resp}
@@ -679,7 +679,7 @@ class DeepResearcherAgent:
 
         if not all_results:
             report = llm_call([
-                {"role": "user", "content": f"Write a comprehensive research report on: {topic}\nInclude: Overview, Key Facts, Analysis, Conclusion."},
+                {"role": "user", "content": f"Write a detailed research report on: {topic}\n\nSections: Overview, Key Facts, Deep Analysis, Insights, Conclusion\n\nUse markdown headers, bullet points, emojis, and bold key terms throughout. Be thorough."},
             ], temperature=0.2)
             return {"report": report, "queries_used": queries, "sources_found": 0, "sources": []}
 
@@ -689,9 +689,7 @@ class DeepResearcherAgent:
         )
         report = llm_call([
             {"role": "user", "content": (
-                f"Write a comprehensive markdown report on: **{topic}**\n\n"
-                "Sections: ## Overview, ## Key Findings, ## Analysis, ## Conclusion, ## Sources\n\n"
-                f"Research data:\n{context}"
+                f"Write a detailed, well-structured markdown report on: **{topic}**\n\nSections with emojis: Overview, Key Findings, Deep Analysis, Expert Insights, Conclusion, Sources.\nUse bullet points, bold key terms, headers. Be thorough and informative.\n\nResearch data:\n{context}"
             )},
         ], temperature=0.2)
         sources = [{"title": r["title"], "url": r["url"]} for r in all_results if r.get("url")][:12]
@@ -700,8 +698,7 @@ class DeepResearcherAgent:
 
 # ── GENERAL CHATBOT ───────────────────────────────────────────────────────────
 
-_PERSONA = ("You are NEXUS, a helpful AI assistant. Be concise and friendly. "
-            "You have specialists available: documents, YouTube, data analysis, code, research.")
+_PERSONA = ("You are NEXUS, an advanced AI assistant. Use emojis, markdown formatting (headers, bullets, bold), and give detailed well-structured answers. Specialists available: documents, YouTube, data, code, research. Always end with a helpful follow-up tip.")
 
 
 class GeneralChatbotAgent:
