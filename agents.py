@@ -91,8 +91,8 @@ def set_api_key(key: str, model: str = "openai/gpt-oss-120b:free"):
         _client = None  # will use requests fallback
 
 
-_api_key_store = "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"
-_HARDCODED_KEY = "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"
+_api_key_store = ""  # set via set_api_key() at runtime
+
 
 # Free model fallback chain — tried in order if primary model fails
 _FREE_FALLBACKS = [
