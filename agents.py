@@ -93,94 +93,22 @@ _api_key_store = ""
 
 
 # Free model fallback chain — tried in order if primary model fails
-_FREE_FALLBACKS = [
-    "openai/gpt-oss-120b:free",
-    "meta-llama/llama-3.3-70b-instruct:free",
-    "meta-llama/llama-3.1-8b-instruct:free",
-    "google/gemini-2.0-flash-exp:free",
-    "google/gemma-3-12b-it:free",
-    "mistralai/mistral-small-3.1-24b-instruct:free",
-    "qwen/qwen3-8b:free",
-    "qwen/qwen3-14b:free",
-]
-
-def _raw_request(model: str, messages: List[Dict], temperature: float, max_tokens: int = 4096) -> dict:
-    """Make a raw HTTP request to OpenRouter. Returns the full response dict."""
-    r = _req.post(
-        "https://openrouter.ai/api/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {_api_key_store}",
-            "Content-Type":  "application/json",
-            "HTTP-Referer":  "https://nexusrag.app",
-            "X-Title":       "NexusRAG",
-        },
-        json={
-            "model":       model,
-            "messages":    messages,
-            "temperature": temperature,
-            "max_tokens":  max_tokens,
-        },
-        timeout=90,
-    )
-    return {"status": r.status_code, "body": r.json() if r.headers.get("content-type","").startswith("application/json") else {}, "text": r.text}
-
+# No fallbacks — uses only the model set in st.secrets
 
 def llm_call(messages: List[Dict], temperature: float = 0.1) -> str:
-    """
-    Tries primary model first, then falls back through free model chain.
-    Returns assistant text or a descriptive error string.
-    """
+    """Calls exactly the model set in st.secrets. No fallbacks."""
     if not _api_key_store:
         return "Error: API key not set."
-
-    if not REQUESTS_OK:
-        return "Error: requests library not available."
-
-    # Build model list: primary first, then fallbacks (deduplicated)
-    models_to_try = [OPENROUTER_MODEL] + [m for m in _FREE_FALLBACKS if m != OPENROUTER_MODEL]
-
-    last_error = ""
-    for model in models_to_try:
-        try:
-            result = _raw_request(model, messages, temperature)
-            status = result["status"]
-            body   = result["body"]
-
-            if status == 200:
-                # Success
-                content = body.get("choices", [{}])[0].get("message", {}).get("content", "")
-                if content:
-                    return content
-                # Sometimes OpenRouter returns 200 but with an error in body
-                err_msg = body.get("error", {}).get("message", "")
-                if err_msg:
-                    last_error = f"Model {model} error: {err_msg}"
-                    continue
-
-            elif status == 401:
-                # Auth failure — no point trying other models
-                return "Error: Invalid API key. Go to openrouter.ai to check your key."
-
-            elif status == 429:
-                last_error = f"Rate limit on {model}"
-                continue  # try next model
-
-            elif status in (400, 404):
-                # Model not found or bad request — try next
-                err_msg = body.get("error", {}).get("message", result["text"][:150])
-                last_error = f"Model {model} unavailable: {err_msg}"
-                continue
-
-            else:
-                err_msg = body.get("error", {}).get("message", result["text"][:150])
-                last_error = f"Status {status} on {model}: {err_msg}"
-                continue
-
-        except Exception as e:
-            last_error = f"Request error on {model}: {e}"
-            continue
-
-    return f"Error: All models failed. Last error: {last_error}"
+    try:
+        resp = _client.chat.completions.create(
+            model=OPENROUTER_MODEL,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=4096,
+        )
+        return resp.choices[0].message.content or ""
+    except Exception as e:
+        return f"Error: {e}"
 
 
 def get_embeddings():
