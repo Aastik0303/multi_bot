@@ -262,12 +262,9 @@ def _ss(k, v):
     if k not in st.session_state:
         st.session_state[k] = v
 
-# ── Load secrets into env (Streamlit Cloud secrets → os.environ) ──────────────
-import os as _os
-_os.environ["OPENROUTER_API_KEY"] = st.secrets.get("OPENROUTER_API_KEY", "")
-_os.environ["OPENROUTER_MODEL"]   = st.secrets.get("OPENROUTER_MODEL", "openai/gpt-oss-120b:free")
-OPENROUTER_API_KEY = _os.environ["OPENROUTER_API_KEY"]
-OPENROUTER_MODEL   = _os.environ["OPENROUTER_MODEL"]
+# API key is read from st.secrets inside agents.py — nothing stored here
+OPENROUTER_API_KEY = ""
+OPENROUTER_MODEL   = ""
 
 _ss("agents_ready",    False)
 _ss("orchestrator",    None)
